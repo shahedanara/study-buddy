@@ -13,7 +13,7 @@ The QR code is generated for the running development preview. It is not a perman
 
 ## Open the source in VS Code
 
-The app source is in this `artifacts/study-buddy` folder. Open this folder in VS Code, or open the complete project folder if you want to keep the pnpm workspace intact. To start the Expo Go preview from VS Code, install the packages and run:
+Open this project folder in VS Code. To start the Expo Go preview, install the packages and run:
 
 ```bash
 npm install
@@ -21,6 +21,10 @@ npx expo start --tunnel
 ```
 
 Then scan the new QR code with Expo Go. The first device launch asks for calendar access only when you choose **Sync**.
+
+## Deploy to Netlify
+
+Connect this GitHub repository to Netlify and use the repository root as the base directory. The included `netlify.toml` configures the production build (`npm run build`) and publishes the generated `dist` folder. The build exports the app as a static Expo web site.
 
 ## Main source files
 
