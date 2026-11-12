@@ -14,7 +14,11 @@ export type StudyProfile = {
   name: string;
   major: string;
   courses: string[];
+  focusCourses: string[];
+  focusTopics: string;
+  helpCourses: string[];
   availability: string[];
+  studyTimes: string[];
   preference: string;
 };
 
@@ -25,6 +29,7 @@ export type StudySession = {
   time: string;
   place: string;
   topic: string;
+  withBuddy?: string;
   calendarEventId?: string;
 };
 
@@ -50,7 +55,9 @@ export type StudyBuddy = {
   name: string;
   major: string;
   courses: string[];
+  strengths: string[];
   availability: string[];
+  studyTimes: string[];
   preference: string;
   initials: string;
   color: string;
@@ -58,11 +65,15 @@ export type StudyBuddy = {
 };
 
 const defaultProfile: StudyProfile = {
-  name: 'Alex Morgan',
-  major: 'Computer Science',
-  courses: ['CS101', 'Physics 101'],
-  availability: ['Mon', 'Wed', 'Fri'],
-  preference: 'Campus library',
+  name: '',
+  major: '',
+  courses: [],
+  focusCourses: [],
+  focusTopics: '',
+  helpCourses: [],
+  availability: [],
+  studyTimes: [],
+  preference: '',
 };
 
 function dayStamp(date: Date) {
@@ -72,32 +83,9 @@ function dayStamp(date: Date) {
   return `${year}-${month}-${day}`;
 }
 
-function dateAfter(days: number) {
-  const date = new Date();
-  date.setDate(date.getDate() + days);
-  return dayStamp(date);
-}
-
 const starterData: StudyData = {
   profile: defaultProfile,
-  sessions: [
-    {
-      id: 'session-wed',
-      course: 'CS101',
-      date: dateAfter(1),
-      time: '3:00 PM',
-      place: 'Group Study Room 201',
-      topic: 'Algebra practice',
-    },
-    {
-      id: 'session-fri',
-      course: 'Physics 101',
-      date: dateAfter(3),
-      time: '10:00 AM',
-      place: 'Quiet Corner Pods',
-      topic: 'Problem set review',
-    },
-  ],
+  sessions: [],
   connectedMatchIds: [],
   bookings: [],
   messages: [
@@ -134,7 +122,9 @@ export const studyBuddies: StudyBuddy[] = [
     name: 'Sofia Chen',
     major: 'Mechanical Engineering',
     courses: ['CS101', 'Physics 101'],
+    strengths: ['Physics 101'],
     availability: ['Mon', 'Wed', 'Thu'],
+    studyTimes: ['Afternoon'],
     preference: 'Library',
     initials: 'SC',
     color: '#DCE8C9',
@@ -145,18 +135,35 @@ export const studyBuddies: StudyBuddy[] = [
     name: 'Maya Patel',
     major: 'Computer Science',
     courses: ['CS101', 'Math 201'],
+    strengths: ['CS101'],
     availability: ['Mon', 'Wed', 'Fri'],
+    studyTimes: ['Afternoon', 'Evening'],
     preference: 'Quiet study rooms',
     initials: 'MP',
     color: '#F2DCCF',
     about: 'Likes to work through problems together.',
   },
   {
+    id: 'sarah',
+    name: 'Sarah Johnson',
+    major: 'Applied Mathematics',
+    courses: ['Math 201', 'CS101'],
+    strengths: ['Math 201'],
+    availability: ['Mon', 'Wed', 'Fri'],
+    studyTimes: ['Afternoon'],
+    preference: 'Campus library',
+    initials: 'SJ',
+    color: '#E8DDF2',
+    about: 'Enjoys explaining math concepts with step-by-step examples.',
+  },
+  {
     id: 'noah',
     name: 'Noah Williams',
     major: 'Physics',
     courses: ['Physics 101', 'Math 201'],
+    strengths: ['Physics 101', 'Math 201'],
     availability: ['Wed', 'Fri'],
+    studyTimes: ['Afternoon', 'Evening'],
     preference: 'Campus library',
     initials: 'NW',
     color: '#D9E2F2',
@@ -167,7 +174,9 @@ export const studyBuddies: StudyBuddy[] = [
     name: 'Lina Haddad',
     major: 'Data Science',
     courses: ['CS101', 'Physics 101', 'Bio 110'],
+    strengths: ['CS101'],
     availability: ['Tue', 'Fri', 'Sat'],
+    studyTimes: ['Morning', 'Afternoon'],
     preference: 'Quiet pods',
     initials: 'LH',
     color: '#F0E2B9',
@@ -206,7 +215,14 @@ export function StudyDataProvider({ children }: { children: React.ReactNode }) {
           setData({
             ...starterData,
             ...parsed,
-            profile: { ...starterData.profile, ...parsed.profile },
+            profile: {
+              ...starterData.profile,
+              ...parsed.profile,
+              focusCourses: parsed.profile?.focusCourses ?? [],
+              focusTopics: parsed.profile?.focusTopics ?? '',
+              helpCourses: parsed.profile?.helpCourses ?? [],
+              studyTimes: parsed.profile?.studyTimes ?? ['Afternoon'],
+            },
             sessions: parsed.sessions ?? starterData.sessions,
             connectedMatchIds: parsed.connectedMatchIds ?? [],
             bookings: parsed.bookings ?? [],

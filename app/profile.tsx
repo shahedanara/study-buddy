@@ -23,6 +23,18 @@ import {
 } from '@/components/study-ui';
 
 const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+const studyTimes = ['Morning', 'Afternoon', 'Evening'];
+
+function parseList(value: string) {
+  return Array.from(
+    new Set(
+      value
+        .split(/[,\n]/)
+        .map((item) => item.trim())
+        .filter(Boolean),
+    ),
+  );
+}
 
 function ProfileField({
   label,
@@ -71,16 +83,24 @@ export default function ProfileScreen() {
   const [name, setName] = useState(data.profile.name);
   const [major, setMajor] = useState(data.profile.major);
   const [coursesText, setCoursesText] = useState(data.profile.courses.join(', '));
+  const [focusCoursesText, setFocusCoursesText] = useState(data.profile.focusCourses.join(', '));
+  const [focusTopics, setFocusTopics] = useState(data.profile.focusTopics);
+  const [helpCoursesText, setHelpCoursesText] = useState(data.profile.helpCourses.join(', '));
   const [preference, setPreference] = useState(data.profile.preference);
   const [availability, setAvailability] = useState<string[]>(data.profile.availability);
+  const [selectedStudyTimes, setSelectedStudyTimes] = useState<string[]>(data.profile.studyTimes);
 
   useEffect(() => {
     if (!ready) return;
     setName(data.profile.name);
     setMajor(data.profile.major);
     setCoursesText(data.profile.courses.join(', '));
+    setFocusCoursesText(data.profile.focusCourses.join(', '));
+    setFocusTopics(data.profile.focusTopics);
+    setHelpCoursesText(data.profile.helpCourses.join(', '));
     setPreference(data.profile.preference);
     setAvailability(data.profile.availability);
+    setSelectedStudyTimes(data.profile.studyTimes);
   }, [data.profile, ready]);
 
   if (!ready) return <LoadingState />;
@@ -93,15 +113,16 @@ export default function ProfileScreen() {
     );
   };
 
-  const save = () => {
-    const courses = Array.from(
-      new Set(
-        coursesText
-          .split(/[,\n]/)
-          .map((course) => course.trim())
-          .filter(Boolean),
-      ),
+  const toggleStudyTime = (time: string) => {
+    setSelectedStudyTimes((current) =>
+      current.includes(time)
+        ? current.filter((item) => item !== time)
+        : [...current, time],
     );
+  };
+
+  const save = () => {
+    const courses = parseList(coursesText);
     if (!name.trim()) {
       Alert.alert('Add your name', 'Your study group will use this to recognize you.');
       return;
@@ -114,11 +135,19 @@ export default function ProfileScreen() {
       Alert.alert('Choose your free days', 'Select at least one day when you are usually available.');
       return;
     }
+    if (!selectedStudyTimes.length) {
+      Alert.alert('Choose a time of day', 'Select at least one time when you are usually free.');
+      return;
+    }
     saveProfile({
       name: name.trim(),
       major: major.trim() || 'Undeclared',
       courses,
+      focusCourses: parseList(focusCoursesText),
+      focusTopics: focusTopics.trim(),
+      helpCourses: parseList(helpCoursesText),
       availability: days.filter((day) => availability.includes(day)),
+      studyTimes: studyTimes.filter((time) => selectedStudyTimes.includes(time)),
       preference: preference.trim() || 'No preference',
     });
     Alert.alert('Profile saved', 'Your course matches will update with your new details.');
@@ -153,7 +182,7 @@ export default function ProfileScreen() {
             Make your profile yours.
           </Text>
           <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>
-            Share what you study and when you like to focus.
+            Share what you study, what you want to work on, and when you are free.
           </Text>
         </View>
 
@@ -180,6 +209,31 @@ export default function ProfileScreen() {
           <Text style={[styles.helper, { color: colors.mutedForeground }]}>
             Separate course names or IDs with commas.
           </Text>
+          <ProfileField
+            label="COURSES TO FOCUS ON"
+            value={focusCoursesText}
+            onChangeText={setFocusCoursesText}
+            placeholder="Math 201, Physics 101"
+          />
+          <Text style={[styles.helper, { color: colors.mutedForeground }]}>
+            Tell us which classes need more attention. These are your priorities, not grades.
+          </Text>
+          <ProfileField
+            label="TOPICS YOU WANT TO PRACTICE"
+            value={focusTopics}
+            onChangeText={setFocusTopics}
+            placeholder="Algebra, equations, and word problems"
+            multiline
+          />
+          <ProfileField
+            label="COURSES YOU CAN HELP WITH"
+            value={helpCoursesText}
+            onChangeText={setHelpCoursesText}
+            placeholder="CS101, Physics 101"
+          />
+          <Text style={[styles.helper, { color: colors.mutedForeground }]}>
+            We use this to suggest classmates who can support your focus courses.
+          </Text>
         </Surface>
 
         <View style={styles.availabilitySection}>
@@ -196,6 +250,25 @@ export default function ProfileScreen() {
                 label={day}
                 active={availability.includes(day)}
                 onPress={() => toggleDay(day)}
+              />
+            ))}
+          </View>
+        </View>
+
+        <View style={styles.availabilitySection}>
+          <Text style={[styles.sectionTitle, { color: colors.foreground }]}>
+            What time of day works?
+          </Text>
+          <Text style={[styles.sectionSubtitle, { color: colors.mutedForeground }]}>
+            We look for classmates with overlapping free time.
+          </Text>
+          <View style={styles.dayGrid}>
+            {studyTimes.map((time) => (
+              <Pill
+                key={time}
+                label={time}
+                active={selectedStudyTimes.includes(time)}
+                onPress={() => toggleStudyTime(time)}
               />
             ))}
           </View>

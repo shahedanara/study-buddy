@@ -40,6 +40,43 @@ export default function HomeScreen() {
     day: 'numeric',
   });
 
+  if (!data.profile.name.trim() || !data.profile.courses.length) {
+    return (
+      <Page>
+        <PageHeading
+          eyebrow={dayLabel}
+          title="Welcome to\nStudy Buddy."
+          subtitle="Make your next study session count."
+          right={
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Set up your study profile"
+              onPress={() => router.push('/profile')}
+            >
+              <PersonAvatar initials="?" size={44} />
+            </Pressable>
+          }
+        />
+        <Surface style={styles.setupCard}>
+          <View style={[styles.matchIcon, { backgroundColor: colors.accent }]}>
+            <Feather name="user-check" size={20} color={colors.accentForeground} />
+          </View>
+          <Text style={[styles.cardTitle, { color: colors.foreground }]}>
+            Start with your student profile
+          </Text>
+          <Text style={[styles.cardDescription, { color: colors.mutedForeground }]}>
+            Add your name, courses, study priorities, strengths, and free time. We’ll use them to suggest study partners and make a plan that fits.
+          </Text>
+          <ActionButton
+            label="Set up my profile"
+            icon="arrow-right"
+            onPress={() => router.push('/profile')}
+          />
+        </Surface>
+      </Page>
+    );
+  }
+
   return (
     <Page>
       <PageHeading
@@ -139,6 +176,33 @@ export default function HomeScreen() {
         </View>
       </View>
 
+      <View style={styles.sectionBlock}>
+        <SectionHeading
+          title="Your study needs"
+          actionLabel="Update"
+          onAction={() => router.push('/profile')}
+        />
+        <Surface style={styles.needsCard}>
+          {data.profile.focusCourses.length ? (
+            <>
+              <View style={styles.pillRow}>
+                {data.profile.focusCourses.map((course) => (
+                  <Pill key={course} label={course} icon="target" active />
+                ))}
+              </View>
+              <Text style={[styles.cardDescription, { color: colors.mutedForeground }]}>
+                {data.profile.focusTopics ||
+                  'Build confidence with a focused review and a few practice problems.'}
+              </Text>
+            </>
+          ) : (
+            <Text style={[styles.cardDescription, { color: colors.mutedForeground }]}>
+              Tell us which courses or topics you want to improve. We’ll put those first when suggesting a study plan.
+            </Text>
+          )}
+        </Surface>
+      </View>
+
       <Surface style={styles.matchCard}>
         <View style={[styles.matchIcon, { backgroundColor: colors.accent }]}>
           <Feather name="users" size={19} color={colors.accentForeground} />
@@ -198,6 +262,14 @@ export default function HomeScreen() {
 }
 
 const styles = StyleSheet.create({
+  setupCard: {
+    gap: 14,
+    padding: 20,
+  },
+  needsCard: {
+    gap: 12,
+    padding: 16,
+  },
   nextCard: {
     minHeight: 224,
     gap: 9,

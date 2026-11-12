@@ -1,6 +1,6 @@
 # Study Buddy
 
-Study Buddy is an Expo mobile app for student profiles, course-based buddy matches, study scheduling, course chat, and campus study-space reservations.
+Study Buddy is an Expo app for student profiles, study priorities, course-based peer matching, study scheduling, course chat, and campus study-space suggestions.
 
 ## Open the app in Expo Go from Replit
 
@@ -42,4 +42,4 @@ Connect this GitHub repository to Netlify and use the repository root as the bas
 
 ## Current prototype data
 
-Profiles, matches, chat messages, sessions, and reservations are saved on the device. The buddy directory and campus locations are sample data, so they are not visible to other users and do not reserve a real campus room. Calendar sync writes sessions to a writable calendar on the phone.
+Profiles, study priorities, chat messages, sessions, and reservations are saved on the device. Match suggestions use a sample buddy directory and the profile's shared courses, focus subjects, strengths, and available days/times. Meetup plans select a shared day and time, suggest a study space, and prioritize the student's entered focus topic. The buddy directory and campus locations are sample data: profiles are not shared with other users and reservations do not reserve a real campus room. Calendar sync writes sessions to a writable calendar on the phone.

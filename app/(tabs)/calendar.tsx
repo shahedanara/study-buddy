@@ -104,12 +104,23 @@ export default function CalendarScreen() {
       Alert.alert('Add a course first', 'Set up a course in your profile before scheduling a session.');
       return;
     }
+    const preference = data.profile.preference.toLowerCase();
+    const place = preference.includes('quiet')
+      ? 'Quiet Corner Pods'
+      : preference.includes('room') || preference.includes('group')
+        ? 'Group Study Room 201'
+        : data.profile.preference || 'Group Study Room 201';
     addSession({
       course: selectedCourse,
       date: selectedDate,
       time: selectedTime,
-      place: 'Group Study Room 201',
-      topic: `${selectedCourse} study session`,
+      place,
+      topic:
+        data.profile.focusCourses.some(
+          (course) => course.toLowerCase() === selectedCourse.toLowerCase(),
+        ) && data.profile.focusTopics.trim()
+          ? data.profile.focusTopics.trim()
+          : `${selectedCourse} study session`,
     });
     setScheduleOpen(false);
     Alert.alert(
@@ -291,6 +302,7 @@ export default function CalendarScreen() {
                 </View>
                 <Text style={[styles.sessionTopic, { color: colors.mutedForeground }]}>
                   {session.topic}
+                  {session.withBuddy ? ` · with ${session.withBuddy}` : ''}
                 </Text>
                 <View style={styles.sessionMeta}>
                   <Feather name="clock" size={13} color={colors.primary} />
@@ -368,7 +380,7 @@ export default function CalendarScreen() {
                   Make a study plan
                 </Text>
                 <Text style={[styles.sheetSubtitle, { color: colors.mutedForeground }]}>
-                  {formatDateStamp(selectedDate)}
+                  {formatDateStamp(selectedDate)} · {data.profile.preference || 'Group Study Room 201'}
                 </Text>
               </View>
               <IconButton

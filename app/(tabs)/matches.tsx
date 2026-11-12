@@ -1,8 +1,15 @@
 import React, { useMemo, useState } from 'react';
+import { Alert } from 'react-native';
+import { useRouter } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 import { StyleSheet, Text, View } from 'react-native';
 import { useColors } from '@/hooks/useColors';
-import { studyBuddies, useStudyData } from '@/context/StudyData';
+import {
+  formatDateStamp,
+  studyBuddies,
+  toDateStamp,
+  useStudyData,
+} from '@/context/StudyData';
 import {
   ActionButton,
   LoadingState,
@@ -22,7 +29,8 @@ function courseKey(course: string) {
 
 export default function MatchesScreen() {
   const colors = useColors();
-  const { data, ready, toggleConnection } = useStudyData();
+  const router = useRouter();
+  const { data, ready, toggleConnection, addSession } = useStudyData();
   const [courseFilter, setCourseFilter] = useState('All');
 
   const matches = useMemo(() => {
@@ -36,28 +44,114 @@ export default function MatchesScreen() {
         const commonDays = buddy.availability.filter((day) =>
           data.profile.availability.includes(day),
         );
+        const commonStudyTimes = buddy.studyTimes.filter((time) =>
+          data.profile.studyTimes.includes(time),
+        );
+        const supportCourses = buddy.strengths.filter((course) =>
+          data.profile.focusCourses.some(
+            (focusCourse) => courseKey(focusCourse) === courseKey(course),
+          ),
+        );
         const courseScore =
           data.profile.courses.length > 0
             ? commonCourses.length / data.profile.courses.length
             : 0;
-        const timeScore =
-          data.profile.availability.length > 0
-            ? commonDays.length / data.profile.availability.length
+        const timeScore = commonStudyTimes.length > 0 ? 1 : 0;
+        const supportScore =
+          data.profile.focusCourses.length > 0
+            ? supportCourses.length / data.profile.focusCourses.length
             : 0;
-        const compatibility = Math.round(45 + courseScore * 35 + timeScore * 20);
-        return { ...buddy, commonCourses, commonDays, compatibility };
+        const compatibility = Math.min(
+          99,
+          Math.round(40 + courseScore * 20 + timeScore * 15 + supportScore * 25),
+        );
+        return {
+          ...buddy,
+          commonCourses,
+          commonDays,
+          commonStudyTimes,
+          supportCourses,
+          compatibility,
+        };
       })
       .filter((match) => {
         if (!match.commonCourses.length) return false;
+        if (!match.commonDays.length || !match.commonStudyTimes.length) return false;
         if (courseFilter === 'All') return true;
         return match.commonCourses.some(
           (course) => courseKey(course) === courseKey(courseFilter),
         );
       })
       .sort((a, b) => b.compatibility - a.compatibility);
-  }, [data.profile.availability, data.profile.courses, courseFilter]);
+  }, [
+    data.profile.availability,
+    data.profile.courses,
+    data.profile.focusCourses,
+    data.profile.studyTimes,
+    courseFilter,
+  ]);
 
   if (!ready) return <LoadingState />;
+
+  const planMeetup = (match: (typeof matches)[number]) => {
+    const weekdayNumber: Record<string, number> = {
+      Sun: 0,
+      Mon: 1,
+      Tue: 2,
+      Wed: 3,
+      Thu: 4,
+      Fri: 5,
+      Sat: 6,
+    };
+    const date = new Date();
+    const nextSlot = match.commonDays
+      .map((day) => ({
+        day,
+        daysAhead: (weekdayNumber[day] - date.getDay() + 7) % 7 || 7,
+      }))
+      .sort((a, b) => a.daysAhead - b.daysAhead)[0];
+    if (!nextSlot || !match.commonStudyTimes.length) {
+      Alert.alert('No shared time found', 'Update your availability to plan a meetup.');
+      return;
+    }
+
+    date.setDate(date.getDate() + nextSlot.daysAhead);
+    const studyTime = match.commonStudyTimes[0];
+    const time =
+      studyTime === 'Morning'
+        ? '10:00 AM'
+        : studyTime === 'Evening'
+          ? '5:00 PM'
+          : '3:00 PM';
+    const course = match.supportCourses[0] ?? match.commonCourses[0];
+    const preference = `${data.profile.preference} ${match.preference}`.toLowerCase();
+    const place = preference.includes('quiet')
+      ? 'Quiet Corner Pods'
+      : 'Group Study Room 201';
+    const topic =
+      data.profile.focusTopics.trim() ||
+      `Review ${course} concepts and work through practice questions`;
+
+    addSession({
+      course,
+      date: toDateStamp(date),
+      time,
+      place,
+      topic,
+      withBuddy: match.name,
+    });
+    if (!data.connectedMatchIds.includes(match.id)) {
+      toggleConnection(match.id);
+    }
+    Alert.alert(
+      'Meetup planned',
+      `${match.name} · ${course}\n${formatDateStamp(toDateStamp(date))} at ${time}\n${place}\nPriority: ${topic}`,
+      [
+        { text: 'View calendar', onPress: () => router.navigate('/calendar') },
+        { text: 'Done' },
+      ],
+    );
+  };
 
   return (
     <Page>
@@ -76,7 +170,7 @@ export default function MatchesScreen() {
             Your match signal
           </Text>
           <Text style={[styles.summaryText, { color: colors.mutedForeground }]}>
-            Course overlap and availability shape each score.
+            Matches share a course and free time. Helpers for your focus courses rank first.
           </Text>
         </View>
       </Surface>
@@ -168,15 +262,41 @@ export default function MatchesScreen() {
                   {orderedDays.length
                     ? orderedDays.join(' · ')
                     : 'No overlapping days yet'}
-                  {'  '}· {match.preference}
+                  {'  '}· {match.commonStudyTimes.join(', ')}
                 </Text>
               </View>
+
+              {match.supportCourses.length ? (
+                <View style={styles.detailGroup}>
+                  <View style={styles.detailLabelRow}>
+                    <Feather name="star" size={14} color={colors.primary} />
+                    <Text style={[styles.detailLabel, { color: colors.foreground }]}>
+                      Can help with your focus
+                    </Text>
+                  </View>
+                  <View style={styles.tags}>
+                    {match.supportCourses.map((course) => (
+                      <Pill key={course} label={course} active />
+                    ))}
+                  </View>
+                </View>
+              ) : null}
+
+              <Text style={[styles.about, { color: colors.mutedForeground }]}>
+                Prototype example profile · Suggested place: {match.preference}
+              </Text>
 
               <ActionButton
                 label={connected ? 'Connected' : 'Connect'}
                 icon={connected ? 'check' : 'user-plus'}
                 tone={connected ? 'soft' : 'primary'}
                 onPress={() => toggleConnection(match.id)}
+              />
+              <ActionButton
+                label="Plan a meetup"
+                icon="calendar"
+                tone="accent"
+                onPress={() => planMeetup(match)}
               />
             </Surface>
           );
@@ -190,7 +310,7 @@ export default function MatchesScreen() {
             No course matches yet
           </Text>
           <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>
-            Add a shared course in your profile to see classmates who study it.
+            Add shared courses, focus areas, and overlapping free days and times to find a study partner.
           </Text>
         </Surface>
       )}
