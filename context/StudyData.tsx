@@ -188,7 +188,7 @@ type StudyDataContextValue = {
   data: StudyData;
   ready: boolean;
   saveProfile: (profile: StudyProfile) => void;
-  addSession: (session: Omit<StudySession, 'id'>) => void;
+  addSession: (session: Omit<StudySession, 'id'>) => string;
   markCalendarSynced: (sessionId: string, calendarEventId: string) => void;
   toggleConnection: (matchId: string) => void;
   toggleBooking: (placeId: string) => void;
@@ -253,12 +253,14 @@ export function StudyDataProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const addSession = useCallback((session: Omit<StudySession, 'id'>) => {
+    const id = makeId();
     setData((current) => ({
       ...current,
-      sessions: [...current.sessions, { ...session, id: makeId() }].sort(
+      sessions: [...current.sessions, { ...session, id }].sort(
         (a, b) => `${a.date} ${a.time}`.localeCompare(`${b.date} ${b.time}`),
       ),
     }));
+    return id;
   }, []);
 
   const markCalendarSynced = useCallback(

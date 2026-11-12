@@ -10,9 +10,15 @@ import {
 } from 'react-native';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { Feather } from '@expo/vector-icons';
+import { useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useColors } from '@/hooks/useColors';
-import { initialsForName, useStudyData, type ChatMessage } from '@/context/StudyData';
+import {
+  initialsForName,
+  studyBuddies,
+  useStudyData,
+  type ChatMessage,
+} from '@/context/StudyData';
 import { LoadingState, PageHeading, PersonAvatar, Pill } from '@/components/study-ui';
 
 function formatMessageTime(isoDate: string) {
@@ -25,7 +31,10 @@ function formatMessageTime(isoDate: string) {
 export default function ChatScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
+  const { buddyId } = useLocalSearchParams<{ buddyId?: string }>();
   const { data, ready, sendMessage } = useStudyData();
+  const directBuddy = studyBuddies.find((buddy) => buddy.id === buddyId);
+  const directChannel = directBuddy ? `direct:${directBuddy.id}` : null;
   const [selectedChannel, setSelectedChannel] = useState(
     data.profile.courses[0] ?? 'Physics 101',
   );
@@ -35,20 +44,21 @@ export default function ChatScreen() {
   const activeChannel = channels.includes(selectedChannel)
     ? selectedChannel
     : channels[0] ?? '';
+  const activeConversation = directChannel ?? activeChannel;
   const messages = useMemo(
     () =>
       data.messages
-        .filter((message) => message.channel === activeChannel)
+        .filter((message) => message.channel === activeConversation)
         .slice()
         .reverse(),
-    [data.messages, activeChannel],
+    [data.messages, activeConversation],
   );
 
   if (!ready) return <LoadingState />;
 
   const submitMessage = () => {
     if (!draft.trim()) return;
-    sendMessage(activeChannel, draft);
+    sendMessage(activeConversation, draft);
     setDraft('');
   };
 
@@ -71,41 +81,53 @@ export default function ChatScreen() {
         />
       </View>
 
-      <View style={styles.channels}>
-        {channels.length ? (
-          <FlatList
-            horizontal
-            data={channels}
-            keyExtractor={(course) => course}
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.channelList}
-            renderItem={({ item }) => (
-              <Pill
-                label={item}
-                active={selectedChannel === item}
-                onPress={() => setSelectedChannel(item)}
-              />
-            )}
-          />
-        ) : (
-          <Text style={[styles.noChannels, { color: colors.mutedForeground }]}>
-            Add a course in your profile to start a chat.
-          </Text>
-        )}
-      </View>
+      {!directBuddy ? (
+        <View style={styles.channels}>
+          {channels.length ? (
+            <FlatList
+              horizontal
+              data={channels}
+              keyExtractor={(course) => course}
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.channelList}
+              renderItem={({ item }) => (
+                <Pill
+                  label={item}
+                  active={selectedChannel === item}
+                  onPress={() => setSelectedChannel(item)}
+                />
+              )}
+            />
+          ) : (
+            <Text style={[styles.noChannels, { color: colors.mutedForeground }]}>
+              Add a course in your profile to start a chat.
+            </Text>
+          )}
+        </View>
+      ) : null}
 
-      {channels.length ? (
+      {directBuddy || channels.length ? (
         <>
           <View style={styles.roomIntro}>
             <View style={[styles.roomIcon, { backgroundColor: colors.secondary }]}>
-              <Feather name="users" size={15} color={colors.primary} />
+              {directBuddy ? (
+                <PersonAvatar
+                  initials={directBuddy.initials}
+                  color={directBuddy.color}
+                  size={34}
+                />
+              ) : (
+                <Feather name="users" size={15} color={colors.primary} />
+              )}
             </View>
             <View style={styles.roomCopy}>
               <Text style={[styles.roomTitle, { color: colors.foreground }]}>
-                {selectedChannel} study group
+                {directBuddy ? directBuddy.name : `${activeChannel} study group`}
               </Text>
               <Text style={[styles.roomSubtitle, { color: colors.mutedForeground }]}>
-                Messages stay on this device
+                {directBuddy
+                  ? 'Private chat · Messages stay on this device'
+                  : 'Messages stay on this device'}
               </Text>
             </View>
             <View style={[styles.onlineDot, { backgroundColor: colors.primary }]} />
@@ -154,7 +176,7 @@ export default function ChatScreen() {
                 accessibilityLabel="Write a message"
                 value={draft}
                 onChangeText={setDraft}
-                placeholder={`Message ${activeChannel}`}
+                placeholder={`Message ${directBuddy?.name ?? activeChannel}`}
                 placeholderTextColor={colors.mutedForeground}
                 multiline
                 maxLength={500}

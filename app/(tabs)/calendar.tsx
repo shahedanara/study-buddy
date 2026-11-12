@@ -166,7 +166,9 @@ export default function CalendarScreen() {
         const startDate = eventStart(session.date, session.time);
         const endDate = new Date(startDate.getTime() + 60 * 60 * 1000);
         const eventId = await Calendar.createEventAsync(writableCalendar.id, {
-          title: `${session.course} · Study Buddy`,
+          title: `${session.course} study session${
+            session.withBuddy ? ` with ${session.withBuddy}` : ''
+          }`,
           startDate,
           endDate,
           location: session.place,

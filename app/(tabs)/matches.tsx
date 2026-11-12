@@ -1,8 +1,9 @@
 import React, { useMemo, useState } from 'react';
-import { Alert } from 'react-native';
+import { Alert, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 import { StyleSheet, Text, View } from 'react-native';
+import * as Calendar from 'expo-calendar';
 import { useColors } from '@/hooks/useColors';
 import {
   formatDateStamp,
@@ -30,7 +31,13 @@ function courseKey(course: string) {
 export default function MatchesScreen() {
   const colors = useColors();
   const router = useRouter();
-  const { data, ready, toggleConnection, addSession } = useStudyData();
+  const {
+    data,
+    ready,
+    toggleConnection,
+    addSession,
+    markCalendarSynced,
+  } = useStudyData();
   const [courseFilter, setCourseFilter] = useState('All');
 
   const matches = useMemo(() => {
@@ -93,7 +100,7 @@ export default function MatchesScreen() {
 
   if (!ready) return <LoadingState />;
 
-  const planMeetup = (match: (typeof matches)[number]) => {
+  const planMeetup = async (match: (typeof matches)[number]) => {
     const weekdayNumber: Record<string, number> = {
       Sun: 0,
       Mon: 1,
@@ -132,7 +139,7 @@ export default function MatchesScreen() {
       data.profile.focusTopics.trim() ||
       `Review ${course} concepts and work through practice questions`;
 
-    addSession({
+    const sessionId = addSession({
       course,
       date: toDateStamp(date),
       time,
@@ -143,9 +150,51 @@ export default function MatchesScreen() {
     if (!data.connectedMatchIds.includes(match.id)) {
       toggleConnection(match.id);
     }
+    let calendarStatus = 'Added to your Study Buddy calendar.';
+    if (Platform.OS !== 'web') {
+      try {
+        const permission = await Calendar.requestCalendarPermissionsAsync();
+        if (permission.status !== 'granted') {
+          calendarStatus += ' Allow calendar access to add it to your device calendar.';
+        } else {
+          const calendars = await Calendar.getCalendarsAsync(
+            Calendar.EntityTypes.EVENT,
+          );
+          const writableCalendar = calendars.find(
+            (calendar) => calendar.allowsModifications,
+          );
+          if (!writableCalendar) {
+            calendarStatus += ' No writable device calendar was found.';
+          } else {
+            const startDate = new Date(date);
+            const timeMatch = time.match(/^(\d{1,2}):(\d{2})\s(AM|PM)$/);
+            if (timeMatch) {
+              let hour = Number(timeMatch[1]) % 12;
+              if (timeMatch[3] === 'PM') hour += 12;
+              startDate.setHours(hour, Number(timeMatch[2]), 0, 0);
+            }
+            const eventId = await Calendar.createEventAsync(
+              writableCalendar.id,
+              {
+                title: `${course} study session with ${match.name}`,
+                startDate,
+                endDate: new Date(startDate.getTime() + 60 * 60 * 1000),
+                location: place,
+                notes: topic,
+                alarms: [{ relativeOffset: -15 }],
+              },
+            );
+            markCalendarSynced(sessionId, eventId);
+            calendarStatus = `Added to your Study Buddy calendar and ${writableCalendar.title}.`;
+          }
+        }
+      } catch {
+        calendarStatus += ' It could not be added to your device calendar.';
+      }
+    }
     Alert.alert(
       'Meetup planned',
-      `${match.name} · ${course}\n${formatDateStamp(toDateStamp(date))} at ${time}\n${place}\nPriority: ${topic}`,
+      `${match.name} · ${course}\n${formatDateStamp(toDateStamp(date))} at ${time}\n${place}\n${topic}\n\n${calendarStatus}`,
       [
         { text: 'View calendar', onPress: () => router.navigate('/calendar') },
         { text: 'Done' },
@@ -287,10 +336,16 @@ export default function MatchesScreen() {
               </Text>
 
               <ActionButton
-                label={connected ? 'Connected' : 'Connect'}
-                icon={connected ? 'check' : 'user-plus'}
+                label={connected ? 'Open chat' : 'Connect'}
+                icon={connected ? 'message-circle' : 'user-plus'}
                 tone={connected ? 'soft' : 'primary'}
-                onPress={() => toggleConnection(match.id)}
+                onPress={() => {
+                  if (!connected) toggleConnection(match.id);
+                  router.push({
+                    pathname: '/(tabs)/chat',
+                    params: { buddyId: match.id },
+                  });
+                }}
               />
               <ActionButton
                 label="Plan a meetup"
